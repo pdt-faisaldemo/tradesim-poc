@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradeSim</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F4F5F1;--card:#fff;--ink:#14181F;--muted:#5A6270;--line:#DDE1D9;--ok:#0E6E5C;--bad:#8E1B1B;--badbg:#FDECEC}
+@media (prefers-color-scheme:dark){:root{--bg:#101318;--card:#181C23;--ink:#E6E9EE;--muted:#9AA3B2;--line:#2A303A;--ok:#3FBF9A;--bad:#F08A8A;--badbg:#3A1C1C}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif}
+header{background:#14181F;color:#F4F5F1;padding:16px 24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.brand{font-weight:700;font-size:20px}.brand span{color:#3FBF9A}
+main{max-width:1100px;margin:0 auto;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+h2{margin:0 0 12px;font-size:18px}.mono{font-family:"IBM Plex Mono",monospace}.muted{color:var(--muted);font-size:13px}
+.big{font-size:30px}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 6px;border-top:1px solid var(--line);text-align:left}
+label{display:grid;gap:6px;font-size:14px;margin-bottom:12px}select,input{font:15px "IBM Plex Mono",monospace;padding:10px;min-height:44px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+button{font:600 15px "IBM Plex Sans";min-height:44px;width:100%;border:0;border-radius:8px;background:var(--ink);color:var(--bg);cursor:pointer}
+.msg{margin-top:12px;padding:12px;border-radius:8px;font-size:14px;display:none}.msg.err{display:block;background:var(--badbg);color:var(--bad)}.msg.ok{display:block;color:var(--ok);border:1px solid var(--ok)}
+.Rejected{color:var(--bad);font-weight:600}.Filled{color:var(--ok);font-weight:600}
+</style>
+</head>
+<body>
+<header><div class="brand">Trade<span>Sim</span></div><div id="owner" class="muted" style="color:#C5CAD3"></div></header>
+<main>
+<section>
+<h2>Cash balance</h2>
+<div id="cash" class="mono big">—</div>
+<div class="muted">Buying power equals cash</div>
+<h2 style="margin-top:20px">Market watch</h2>
+<div id="asof" class="muted mono"></div>
+<table><tbody id="quotes"></tbody></table>
+</section>
+<section>
+<h2>Place an order</h2>
+<label for="symbol">Symbol<select id="symbol"></select></label>
+<label for="qty">Quantity<input id="qty" type="number" min="1" value="50"></label>
+<button id="buy" type="button">Buy</button>
+<div id="msg" class="msg" role="status"></div>
+</section>
+<section>
+<h2>Recent orders</h2>
+<table><thead><tr><th>Time</th><th>Order</th><th>Status</th></tr></thead><tbody id="orders"></tbody></table>
+</section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const money = n => n.toLocaleString('en-US', {style:'currency', currency:'USD'});
+async function load() {
+  const [q, a, o] = await Promise.all(['/api/quotes','/api/account','/api/orders'].map(u => fetch(u).then(r => r.json())));
+  $('owner').textContent = a.owner;
+  $('cash').textContent = money(a.cash);
+  $('asof').textContent = 'Prices as of ' + new Date(q.asOf).toLocaleTimeString();
+  $('quotes').innerHTML = Object.entries(q.prices).map(([s,p]) => `<tr><td><strong>${s}</strong></td><td class="mono">${p.toFixed(2)}</td></tr>`).join('');
+  if (!$('symbol').options.length) $('symbol').innerHTML = Object.keys(q.prices).map(s => `<option>${s}</option>`).join('');
+  $('orders').innerHTML = o.map(x => `<tr><td class="mono">${new Date(x.time).toLocaleTimeString()}</td><td>Buy ${x.qty} ${x.symbol}</td><td class="${x.status}">${x.status}</td></tr>`).join('');
+}
+$('buy').onclick = async () => {
+  const r = await fetch('/api/orders', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({symbol:$('symbol').value, qty:Number($('qty').value)})});
+  const d = await r.json();
+  $('msg').className = 'msg ' + (r.ok ? 'ok' : 'err');
+  $('msg').textContent = r.ok ? `Filled: ${d.qty} ${d.symbol} for ${money(d.cost)}` : `Order rejected: ${d.error}. Reference ${d.traceId || ''}`;
+  load();
+};
+load();
+</script>
+</body>
+</html>

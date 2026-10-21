@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "TradeSim PoC - PagerDuty",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "routing_key",
+      "value": "PASTE_YOUR_INTEGRATION_KEY"
+    },
+    {
+      "key": "app_url",
+      "value": "http://YOUR_EC2_IP:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Change event: risk check deploy",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "https://events.pagerduty.com/v2/change/enqueue",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"routing_key\": \"{{routing_key}}\",\n  \"payload\": {\n    \"summary\": \"Risk check refactor deployed to tradesim-poc (v1.0.1)\",\n    \"timestamp\": \"{{$isoTimestamp}}\",\n    \"source\": \"postman\",\n    \"custom_details\": {\n      \"version\": \"1.0.1\",\n      \"changed_file\": \"app/server.js\",\n      \"changed_function\": \"passesRiskCheck\"\n    }\n  },\n  \"links\": [\n    {\n      \"href\": \"https://github.com/YOUR_ORG/tradesim-poc/commits/main\",\n      \"text\": \"Recent commits\"\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Trigger alert: order rejections spiking",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "https://events.pagerduty.com/v2/enqueue",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"routing_key\": \"{{routing_key}}\",\n  \"event_action\": \"trigger\",\n  \"dedup_key\": \"tradesim-order-rejections\",\n  \"payload\": {\n    \"summary\": \"TradeSim: 94% of orders rejected with 'Insufficient buying power'\",\n    \"source\": \"tradesim-poc-ec2\",\n    \"severity\": \"critical\",\n    \"component\": \"order-api\",\n    \"group\": \"trading\",\n    \"class\": \"error-rate\",\n    \"custom_details\": {\n      \"endpoint\": \"POST /api/orders\",\n      \"rejection_rate\": \"94%\",\n      \"baseline\": \"<2%\",\n      \"log_sample\": \"order rejected by risk check cost=9211 buyingPower=41870\"\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Trigger duplicate alert (dedup demo)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "https://events.pagerduty.com/v2/enqueue",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"routing_key\": \"{{routing_key}}\",\n  \"event_action\": \"trigger\",\n  \"dedup_key\": \"tradesim-order-rejections\",\n  \"payload\": {\n    \"summary\": \"TradeSim: order rejection rate still elevated\",\n    \"source\": \"tradesim-poc-ec2\",\n    \"severity\": \"critical\",\n    \"component\": \"order-api\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Resolve alert",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "https://events.pagerduty.com/v2/enqueue",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"routing_key\": \"{{routing_key}}\",\n  \"event_action\": \"resolve\",\n  \"dedup_key\": \"tradesim-order-rejections\"\n}"
+        }
+      }
+    },
+    {
+      "name": "5. App: place a test order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{app_url}}/api/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"symbol\": \"NVDA\",\n  \"qty\": 50\n}"
+        }
+      }
+    }
+  ]
+}
