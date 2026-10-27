@@ -10,7 +10,10 @@ const account = { owner: 'Jordan Lee', cash: 41870.0 };
 const prices = { NVDA: 184.22, AAPL: 231.05, MSFT: 418.9, AMZN: 197.36 };
 const orders = [];
 
-// Pre-trade risk check: reject orders that cost more than available cash.
+// Pre-trade risk check used by POST /api/orders.
+// Should return true (order allowed) when the order's cost is within the
+// account's buying power (available cash), and false otherwise. A false
+// result marks the order Rejected and responds 422 "Insufficient buying power".
 // DEMO BUG: the "bad deploy" flips this comparison (see README).
 function passesRiskCheck(cost, buyingPower) {
   return cost > buyingPower;
