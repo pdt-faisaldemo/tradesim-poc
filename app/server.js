@@ -13,7 +13,7 @@ const orders = [];
 // Pre-trade risk check: reject orders that cost more than available cash.
 // DEMO BUG: the "bad deploy" flips this comparison (see README).
 function passesRiskCheck(cost, buyingPower) {
-  return cost <= buyingPower;
+  return cost > buyingPower;
 }
 
 app.get('/api/quotes', (req, res) => res.json({ asOf: new Date().toISOString(), prices }));
